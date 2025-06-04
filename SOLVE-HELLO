@@ -58,10 +58,25 @@ Ao atingir o fim da string retorna o tamanho da string em %ax (veio de
 
 Para realizarmos a inserção de uma nova função, como pegar o horário
 atual da BIOS, devemos fazer uma assinatura de função no arquivo stdio.h,
-descrever a lógica da função em libc.S (colocar 0x02 em %ah e usar a int
-0x1A), chamar essa função na main.c, converter para string e imprimir
-usando o printf disponível. Pela lógica dos MAKEFILES não deveria ser
-necessário nenhuma outra modificação.
+essa função foi chamada de get_time; a função tem seu retorno como um int que
+será interpretado da seguinte forma: HHMM no formato BCD (horas e minutos no
+formato BCD Binary-Code Decimal; HH é um byte e MM é um byte, total: 16 bits)
+
+A lógica da função foi escrita em libc.S: colocar 0x02 em %ah e usar a int
+0x1A, que retorna nos registadores %ah, %al e %bh, não é possível retornar as
+horas, minutos e segundos em um registrador, pois o retorno da interrupção da
+BIOS usa o formato BCD e ocupa 3 bytes (24 bits) por isso optamos por retornar
+apenas as horas e minutos, as horas ocupam o registrador %ah e os minutos %al
+(ou seja o registrador %ax inteiramente). Além disso é necessário que a função
+get_time seja definida como global para o linker encontrá-la
+
+Na função main.c chamamos a função get_time, convertemos seu retorno de um int
+contendo HHMM em formato BDC para dois ints, convertendo para formato decimal
+esses ints por sua vez são colocados numa string, que será impressa pela função
+printf, já definida e providenciada. Também foi necessário definir uma função
+_stack_chk_fail, mesmo usando -fno-stack-protector, pois, para alguns membros
+o compilador busca essa função ao se chamar a printf sem passar diretamente uma
+string envolta em "".
 
 NOTAS:
 O printf apenas imprime uma string, não suporta variáveis etc (não é
