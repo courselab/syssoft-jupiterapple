@@ -1,0 +1,72 @@
+Primeiramente para o entendimento do código:
+
+Antes de tudo é necessário lembrar que nossa pasta é reposnável por gerar
+um binário que será executado pela BIOS de um sistema (em nosso caso esse
+sistema é um emulador de um sistema x86 numa vm qemu). Tal fluxo fica
+claro quando analisamos o MAKEFILE e o arquivo bintools.mk (que é apenas
+uma extensão do MAKEFILE). make bin gera esse binário e make bin/run faz
+com que o emulador qemu inicialize usando esse binário como imagem para
+boot.
+
+Vamos analisar os arquivos dentro do fluxo de execução:
+
+O primeiro arquivo a ser executado é o crt0.S:
+Este arquivo é responsável por:
+Mover o stack pointer para o endereço 0x7c00 (um endereço válido para
+escrita, pois chamados de função usarão a pilha)
+chamar a função main (nossa função escrita em C)
+haltar o boot do sistema (impedir que a BIOS tente conrinuar o processo
+de boot após executar a função main)
+
+Vamos analisar como funciona a função main:
+
+A função inclui a biblioteca stdio.h (que na verdade é definida dentro
+do noss arquivo e inclui apenas a função printf)
+chama a função printf e retorna 0
+
+Como ocorre o chamado da função printf?
+Essa função tem sua assinatura dentro do arquivo stdio.h e sua
+implementação no arquivo libc.S, esse arquivo é que faz com que o
+printf seja uma função que funciona para a BIOS (gera um binário
+que de fato fará com que a função printf atue como a impressão de
+caracteres na BIOS). Como funciona o arquivo libc.S?
+
+Primeiramente move o conteúdo de %cx para %bx
+depois move o valor 0x0e (14 em decimal) para %ah
+move o valor 0x0 (0 decimal) para %si
+
+define um label de loop:
+mover o conteúdo do endereço de memória de valor (%bx + %si) para %al
+compara %al e 0x0
+caso %al != 0x0
+fazemos a interrupção 0x10 (16 em decimal) que é a interrupção de vídeo
+(imprime o caractere que está em %al)
+soma 0x1 (1 decimal) no conteúdo do registrador %si
+volta para o início do loop.
+caso %al == 0x0 então move-se o conteúdo de %si para %ax e se retorna
+
+Em outras palavras:
+Recebemos em %cx o endereço de uma string a ser impressa na tela;
+Movemos o valor de %cx para %bx, para poder modificar livremente o valor
+do registrador (%bx é um ponteiro para o caracter atual da string);
+Movemos 0x0e para %ah, que define o modo de impressão
+(tal registrador é checado cada vez que a interrupçao 0x10 é feita);
+Fazemos um loop que checa se a string terminou, imprime o caracter atual
+e vai para o próximo caracter da string;
+Ao atingir o fim da string retorna o tamanho da string em %ax (veio de
+%si);
+
+Para realizarmos a inserção de uma nova função, como pegar o horário
+atual da BIOS, devemos fazer uma assinatura de função no arquivo stdio.h,
+descrever a lógica da função em libc.S (colocar 0x02 em %ah e usar a int
+0x1A), chamar essa função na main.c, converter para string e imprimir
+usando o printf disponível. Pela lógica dos MAKEFILES não deveria ser
+necessário nenhuma outra modificação.
+
+NOTAS:
+O printf apenas imprime uma string, não suporta variáveis etc (não é
+o printf da stdio.h "de verdade", que estamos acostumados em C).
+Lembrar que a BIOS opera em modo 16 Bits
+É necessário que a string seja null-terminated (terminada em 0x0).
+Caso a string tenha tamanho 0, esse caracter deve ser 0x0.
+
