@@ -8,10 +8,10 @@ A vulnerabilidade do código, porém, acontece quando a senha inserida possui um
 
 No começo do código, duas variáveis são declaradas:
 
-C```
-int verified = 0;
-char user_key[10];
-C```
+```
+  int verified = 0;
+   char user_key[10];
+```
 
 Durante o processo de montagem do código, dois registradores são alocados para apontar para a seção de memória reservada para essas variáveis: o **Base Pointer** e o **Stack Pointer**, de forma que esses espaços são alocados **consecutivamente**.
 
@@ -19,9 +19,9 @@ A cada caractere inserido na *user_key*, o Stack Pointer salva esse valor na pos
 
 Mais uma vez no código, percebe-se que a variável user_key é preenchida nesse trecho:
 
-C```
+```
 scanf ("%s", user_key);
-C```
+```
 
 Nesse ponto, observa-se um **risco de vulnerabilidade** muito alto, pois o template de string não limita a quantidade de caracteres que será recebida na variável. Aqui, independentemente do tamanho, o *strcmp* irá fazer a comparação corretamente, não atribuindo o valor 1 (true) para *verified*.
 
